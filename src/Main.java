@@ -1,6 +1,4 @@
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.PrintStream;
+import java.io.*;
 import java.util.*;
 
 public class Main {
@@ -40,8 +38,9 @@ public class Main {
         return newState;
     }
 
-    public void dfs(BlockWorld start, BlockWorld goal){
+    public Result dfs(BlockWorld start, BlockWorld goal){
         List<Integer> directions = new ArrayList<>();
+        List<String> path = new ArrayList<>();
         String[] dirStrings = new String[]{"UP", "DOWN", "LEFT", "RIGHT"};
         String lastAction = "";
         for(int i=0;i<4;i++){
@@ -53,13 +52,13 @@ public class Main {
         while (!s.empty()){
             BlockWorld state = s.pop();
             if(expansions!=0){
-                System.out.println(lastAction);
+                path.add(lastAction);
             }
-            expansions++;
             if(Arrays.deepEquals(state.getGrid(), goal.getGrid())){
                 System.out.println("Reached goal state after "+expansions+" expansions.");
                 break;
             }
+            expansions++;
             Collections.shuffle(directions);
             for(int i=0;i<4;i++){
                 try {
@@ -67,21 +66,29 @@ public class Main {
                     lastAction = dirStrings[directions.get(i)];
                 }catch (IndexOutOfBoundsException ignored){}
             }
+            System.out.println("Frontier Size: "+s.size()+", Depth: "+expansions);
         }
-
+        return new Result(expansions, path);
     }
-    public void bfs(BlockWorld start, BlockWorld goal){
+    public Result bfs(BlockWorld start, BlockWorld goal){
         String[] dirStrings = new String[]{"UP", "DOWN", "LEFT", "RIGHT"};
         int expansions = 0;
         Queue<BlockWorld> queue = new LinkedList<>();
+        List<BlockWorld> visited = new ArrayList<>();
         HashMap<BlockWorld, BlockWorld> parent = new HashMap<>();
         HashMap<BlockWorld, String> action = new HashMap<>();
+        HashMap<BlockWorld, Integer> depth = new HashMap<>();
         queue.add(start);
         parent.put(start, null);
         action.put(start, null);
+        depth.put(start, 0);
         BlockWorld last = start;
         while (!queue.isEmpty()){
             BlockWorld state=queue.remove();
+            visited.add(state);
+            if(state!=start){
+                depth.put(state, depth.get(parent.get(state))+1);
+            }
             if(Arrays.deepEquals(state.getGrid(), goal.getGrid())){
                 last=state;
                 break;
@@ -89,12 +96,15 @@ public class Main {
             for(int i=0;i<4;i++){
                 try{
                     BlockWorld child = moveAgent(state, i);
-                    queue.add(child);
-                    parent.put(child, state);
-                    action.put(child, dirStrings[i]);
+                    if(!visited.contains(child)) {
+                        queue.add(child);
+                        parent.put(child, state);
+                        action.put(child, dirStrings[i]);
+                    }
                 }catch (IndexOutOfBoundsException ignored){}
             }
             expansions++;
+            System.out.println("Frontier Size: "+queue.size()+", Depth: "+depth.get(state));
         }
         List<String> path = new ArrayList<>();
         while(parent.get(last)!=null){
@@ -102,32 +112,35 @@ public class Main {
             last = parent.get(last);
         }
         Collections.reverse(path);
-        for(String s : path){
-            System.out.println(s);
-        }
         System.out.println("Reached goal state after "+expansions+" expansions.");
+        return new Result(expansions, path);
     }
-    public void ids(BlockWorld start, BlockWorld goal){
+    public Result ids(BlockWorld start, BlockWorld goal){
         HashMap<BlockWorld, BlockWorld> parent;
         HashMap<BlockWorld, String> action;
+        HashMap<BlockWorld, Integer> depths;
+        List<BlockWorld> visited = new ArrayList<>();
         int depth = 0;
         IntInABox expansions = new IntInABox(0);
         List<String> path = null;
         while(path==null){
             parent = new HashMap<>();
             action = new HashMap<>();
+            depths = new HashMap<>();
             parent.put(start, null);
             action.put(start, null);
-            path=dls(start, goal, depth, parent, action, expansions);
+            depths.put(start, 0);
+            path=dls(start, goal, depth, parent, action, expansions, depths);
             depth++;
         }
-        for(String s : path){
-            System.out.println(s);
-        }
         System.out.println("Reached goal state after "+expansions.getVal()+" expansions");
+        return new Result(expansions.getVal(), path);
     }
-    private List<String> dls(BlockWorld state, BlockWorld goal, int depth, HashMap<BlockWorld, BlockWorld> parent, HashMap<BlockWorld, String> action, IntInABox expansions){
+    private List<String> dls(BlockWorld state, BlockWorld goal, int depth, HashMap<BlockWorld, BlockWorld> parent, HashMap<BlockWorld, String> action, IntInABox expansions, HashMap<BlockWorld, Integer> depths){
         String[] dirStrings = new String[]{"UP", "DOWN", "LEFT", "RIGHT"};
+        if(parent.get(state)!=null){
+            depths.put(state, depths.get(parent.get(state))+1);
+        }
         if(depth==0){
             if(Arrays.deepEquals(state.getGrid(), goal.getGrid())){
                 List<String> path = new ArrayList<>();
@@ -145,18 +158,20 @@ public class Main {
                     BlockWorld child = moveAgent(state, i);
                     parent.put(child, state);
                     action.put(child, dirStrings[i]);
-                    List<String> path = dls(child, goal, depth - 1, parent, action, expansions);
+                    List<String> path = dls(child, goal, depth - 1, parent, action, expansions, depths);
                     if (path != null) {
                         return path;
                     }
                 }catch (IndexOutOfBoundsException ignored){}
             }
+            System.out.println("Frontier Size: N/A, Depth: "+depths.get(state));
             return null;
         }
     }
-    public void ash(BlockWorld start, BlockWorld goal){
+    public Result ash(BlockWorld start, BlockWorld goal){
         String[] dirStrings = new String[]{"UP", "DOWN", "LEFT", "RIGHT"};
         List<BlockWorld> frontier = new ArrayList<>();
+        List<BlockWorld> visited = new ArrayList<>();
         HashMap<BlockWorld, BlockWorld> parent = new HashMap<>();
         HashMap<BlockWorld, Integer> distanceFromRoot = new HashMap<>();
         HashMap<BlockWorld, Integer> score = new HashMap<>();
@@ -176,6 +191,7 @@ public class Main {
                 }
             }
             BlockWorld state = frontier.get(mindex);
+            visited.add(state);
             if (Arrays.deepEquals(state.getGrid(), goal.getGrid())) {
                 last = state;
                 break;
@@ -185,11 +201,13 @@ public class Main {
             for(int i=0;i<4;i++){
                 try {
                     BlockWorld child = moveAgent(state, i);
-                    distanceFromRoot.put(child, distanceFromRoot.get(state)+1);
-                    frontier.add(child);
-                    parent.put(child, state);
-                    score.put(child, evaluate(child, goal)+distanceFromRoot.get(child));
-                    action.put(child, dirStrings[i]);
+                    if(!visited.contains(child)) {
+                        distanceFromRoot.put(child, distanceFromRoot.get(state) + 1);
+                        frontier.add(child);
+                        parent.put(child, state);
+                        score.put(child, evaluate(child, goal) + distanceFromRoot.get(child));
+                        action.put(child, dirStrings[i]);
+                    }
                 }catch (IndexOutOfBoundsException ignored){}
             }
         }
@@ -199,10 +217,8 @@ public class Main {
             last = parent.get(last);
         }
         Collections.reverse(path);
-        for(String s : path){
-            System.out.println(s);
-        }
         System.out.println("Reached goal state after "+expansions+" expansions.");
+        return new Result(expansions, path);
 
     }
 
@@ -233,14 +249,14 @@ public class Main {
         Main main = new Main();
         int size = 4;
         char[][] startGrid = new char[size][size];
-        for(int i=0;i<size;i++){
-            for(int j=0;j<size;j++){
+        for (int i = 0; i < size; i++) {
+            for (int j = 0; j < size; j++) {
                 startGrid[i][j] = ' ';
             }
         }
         char[][] goalGrid = new char[size][size];
-        for(int i=0;i<size;i++){
-            for(int j=0;j<size;j++){
+        for (int i = 0; i < size; i++) {
+            for (int j = 0; j < size; j++) {
                 goalGrid[i][j] = ' ';
             }
         }
@@ -252,14 +268,106 @@ public class Main {
         goalGrid[1][0] = 'C';
         BlockWorld startState = new BlockWorld(startGrid, 3, 0);
         BlockWorld goalState = new BlockWorld(goalGrid, 3, 0);
-        System.out.println("---Depth First Search---");
-        main.dfs(startState,goalState);
-        System.out.println("---Iterative Deepening Search---");
-        main.ids(startState,goalState);
-        System.out.println("---A* Search---");
-        main.ash(startState,goalState);
-        System.out.println("---Breadth First Search---");
-        main.bfs(startState,goalState);
+        boolean run = true;
+        while (run) {
+            System.out.println("Select function:");
+            System.out.println("1 - Single test");
+            System.out.println("2 - DFS Average");
+            System.out.println("3 - Scalability data");
+            System.out.println("4 - Exit");
+            int input = main.readInt(1, 4);
+            if(input==1) {
+                System.out.println("Select search method: ");
+                System.out.println("1 - Depth First Search (Average)");
+                System.out.println("2 - Breadth First Search");
+                System.out.println("3 - Iterative Deepening Search");
+                System.out.println("4 - A* Search");
+                input = main.readInt(1, 4);
+                if (input == 1) {
+                    System.out.println("Running DFS...");
+                    List<String> path = main.dfs(startState, goalState).getPath();
+                    for (String s : path) {
+                        System.out.println(s);
+                    }
+                } else if (input == 2) {
+                    System.out.println("Running BFS...");
+                    List<String> path = main.bfs(startState, goalState).getPath();
+                    for (String s : path) {
+                        System.out.println(s);
+                    }
+                } else if (input == 3) {
+                    System.out.println("Running IDS...");
+                    List<String> path = main.ids(startState, goalState).getPath();
+                    for (String s : path) {
+                        System.out.println(s);
+                    }
+                } else if (input == 4) {
+                    System.out.println("Running A*...");
+                    List<String> path = main.ash(startState, goalState).getPath();
+                    for (String s : path) {
+                        System.out.println(s);
+                    }
+                }
+            }else if(input==2){
+                System.out.println("How many iterations? (1-1000)");
+                input=main.readInt(1, 1000);
+                int total =0;
+                for(int i=0;i<input;i++){
+                    total+=main.dfs(startState,goalState).getExpansions();
+                }
+                System.out.println("Average: "+total/input);
+            }else if(input==3){
+                try {
+                    main.scalabilityStudy(startState, goalState);
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                }
+            }else{
+                run = false;
+            }
+        }
+    }
+
+    public int readInt(int lower, int upper){
+        BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
+        int input = lower-1;
+        while (input<lower||input>upper) {
+            System.out.print(">");
+            try {
+                input= Integer.parseInt(in.readLine());
+            } catch (IOException e) {
+                e.printStackTrace();
+            } catch (NumberFormatException ignored){}
+        }
+        return input;
+    }
+
+    public void scalabilityStudy(BlockWorld startState, BlockWorld goalState) throws FileNotFoundException {
+        List<String> path = ash(startState, goalState).getPath();
+        PrintStream writer = new PrintStream("scalabilityData.txt");
+        writer.println("Solution Depth\tDFS\tBFS\tIDS\tA*");
+        int maxDepth = path.size();
+        for(int i=maxDepth;i>0;i--){
+            BlockWorld state = startState;
+            for(int j=0;j<i;j++){
+                String dir = path.get(j);
+                if(Objects.equals(dir, "UP")){
+                    state = moveAgent(state, 0);
+                }else if(Objects.equals(dir, "DOWN")){
+                    state = moveAgent(state, 1);
+                }else if(Objects.equals(dir, "LEFT")){
+                    state = moveAgent(state, 2);
+                }else if(Objects.equals(dir, "RIGHT")){
+                    state = moveAgent(state, 3);
+                }
+            }
+            int depth = maxDepth-i;
+            int dfs = dfs(state, goalState).getExpansions();
+            int bfs = bfs(state, goalState).getExpansions();
+            int ids = ids(state, goalState).getExpansions();
+            int ash = ash(state, goalState).getExpansions();
+            writer.println(depth+"\t"+dfs+"\t"+bfs+"\t"+ids+"\t"+ash);
+        }
     }
 
     class IntInABox{
@@ -272,6 +380,21 @@ public class Main {
         }
         public int getVal() {
             return val;
+        }
+    }
+
+    class Result{
+        private int expansions;
+        private List<String> path;
+        public Result(int expansions, List<String> path) {
+            this.expansions = expansions;
+            this.path = path;
+        }
+        public int getExpansions() {
+            return expansions;
+        }
+        public List<String> getPath() {
+            return path;
         }
     }
 }
