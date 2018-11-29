@@ -24,13 +24,11 @@ public class BlockWorld {
 
     @Override
     public boolean equals(Object obj) {
-        if(obj instanceof BlockWorld){
-            if(Arrays.deepEquals(((BlockWorld) obj).getGrid(), grid)){
-                if(((BlockWorld) obj).getAgentX()==agentX&&((BlockWorld) obj).getAgentY()==agentY){
-                    return true;
-                }
-            }
+        try{
+            BlockWorld other = (BlockWorld) obj;
+            return Arrays.deepEquals(other.getGrid(), getGrid()) && other.getAgentX() == getAgentX() && other.getAgentY() == getAgentY();
+        }catch (ClassCastException e) {
+            return false;
         }
-        return false;
     }
 }
