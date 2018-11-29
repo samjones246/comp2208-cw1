@@ -347,35 +347,30 @@ public class Main {
         PrintStream writer = new PrintStream("scalabilityData.txt");
         writer.println("Solution Depth\tDFS\tBFS\tIDS\tA*");
         int maxDepth = path.size();
-        for(int i=maxDepth;i>=0;i--){
+        for(int i=maxDepth;i>=0;i--) {
             BlockWorld state = startState;
-            for(int j=0;j<i;j++){
+            for (int j = 0; j < i; j++) {
                 String dir = path.get(j);
-                if(Objects.equals(dir, "UP")){
+                if (Objects.equals(dir, "UP")) {
                     state = moveAgent(state, 0);
-                }else if(Objects.equals(dir, "DOWN")){
+                } else if (Objects.equals(dir, "DOWN")) {
                     state = moveAgent(state, 1);
-                }else if(Objects.equals(dir, "LEFT")){
+                } else if (Objects.equals(dir, "LEFT")) {
                     state = moveAgent(state, 2);
-                }else if(Objects.equals(dir, "RIGHT")){
+                } else if (Objects.equals(dir, "RIGHT")) {
                     state = moveAgent(state, 3);
                 }
             }
-            int depth = maxDepth-i;
+            int depth = maxDepth - i;
             int dfs = 0;
-            //for(int k=0;k<100;k++) {
-                dfs+=dfs(state, goalState).getExpansions();
-            //}
-            //dfs=dfs/100;
-            int bfs = bfs(state, goalState).getExpansions();
-            int ids;
-            if(depth<15) {
-                ids = ids(state, goalState).getExpansions();
-            }else{
-                ids = 0;
+            for (int k = 0; k < 100; k++) {
+                dfs += dfs(state, goalState).getExpansions();
             }
+            dfs = dfs / 100;
+            int bfs = bfs(state, goalState).getExpansions();
+            int ids = ids(state, goalState).getExpansions();
             int ash = ash(state, goalState).getExpansions();
-            writer.println(depth+"\t"+dfs+"\t"+bfs+"\t"+ids+"\t"+ash);
+            writer.println(depth + "\t" + dfs + "\t" + bfs + "\t" + ids + "\t" + ash);
         }
     }
 
